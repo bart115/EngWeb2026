@@ -1,285 +1,168 @@
-import json, os, shutil
+import json
+import os
+import shutil
+from pathlib import Path
 
-def open_json(filename):
-    with open(filename, encoding='utf-8') as f:
-        data = json.load(f)
-    return data
+# -- Funções auxiliares --
 
-def mk_dir(relative_path):
-    if not os.path.exists(relative_path):
-        os.mkdir(relative_path)
+def carregar_dados(caminho):
+    with open(caminho, encoding='utf-8') as ficheiro:
+        return json.load(ficheiro)
+
+def preparar_pasta(pasta):
+    dest = Path(pasta)
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir()
+
+def guardar_pagina(caminho, conteudo):
+    with open(caminho, 'w', encoding='utf-8') as fich:
+        fich.write(conteudo)
+
+def montar_pagina(titulo, corpo):
+    return f'''<html>
+<head>
+    <title>{titulo}</title>
+    <meta charset="utf-8"/>
+</head>
+<body>
+{corpo}
+</body>
+</html>'''
+
+def barra_navegacao(texto_titulo):
+    return f'''<div style="display: flex; justify-content: space-between; align-items: center;">
+     <h3>{texto_titulo}</h3>
+     <a href="index.html">Voltar ao indice</a>
+</div>'''
+
+# -- Carregar dataset --
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(SCRIPT_DIR)
+
+dados = carregar_dados('dataset_reparacoes.json')
+lista_reparacoes = dados['reparacoes']
+preparar_pasta('output')
+
+# -- Página principal (index) --
+
+corpo_index = '''<h3>Dados de possivel consulta</h3>
+<hr/>
+<ul>
+    <li><a href="reparações.html">Reparações</a></li>
+    <li><a href="intervenções.html">Intervenções</a></li>
+    <li><a href="marcasmodelos.html">Marcas e Modelos</a></li>
+</ul>'''
+guardar_pagina('output/index.html', montar_pagina('Consulta', corpo_index))
+
+# -- Página de todas as reparações --
+
+por_data = sorted(lista_reparacoes, key=lambda r: r['data'], reverse=True)
+items_rep = []
+for rep in por_data:
+    v = rep['viatura']
+    texto = f"{rep['data']} - {rep['nome']} - nif:{rep['nif']} - {v['marca']} - {v['modelo']} - {rep['nr_intervencoes']} intervenções"
+    items_rep.append(f'<li><a href="reparação_{v["matricula"]}.html">{texto}</a></li>')
+
+corpo_rep = barra_navegacao('Reparações:') + '\n<ul>\n' + '\n'.join(items_rep) + '\n</ul>'
+guardar_pagina('output/reparações.html', montar_pagina('Reparações', corpo_rep))
+
+# -- Recolher intervenções únicas --
+
+mapa_intervencoes = {}
+for rep in lista_reparacoes:
+    for interv in rep['intervencoes']:
+        cod = interv['codigo']
+        if cod not in mapa_intervencoes:
+            mapa_intervencoes[cod] = interv
+
+codigos_ordenados = sorted(mapa_intervencoes.keys())
+
+# -- Página de todas as intervenções --
+
+items_int = []
+for cod in codigos_ordenados:
+    nm = mapa_intervencoes[cod]['nome']
+    items_int.append(f'<li><a href="intervenção_{cod}.html">{cod} - {nm}</a></li>')
+
+corpo_int = barra_navegacao('Intervenções:') + '\n<ul>\n' + '\n'.join(items_int) + '\n</ul>'
+guardar_pagina('output/intervenções.html', montar_pagina('Intervenções', corpo_int))
+
+# -- Página de marcas e modelos --
+
+contagem_marcas = {}
+contagem_modelos = {}
+modelos_por_marca = {}
+
+for rep in lista_reparacoes:
+    m = rep['viatura']['marca']
+    mod = rep['viatura']['modelo']
+    contagem_marcas[m] = contagem_marcas.get(m, 0) + 1
+    if m not in modelos_por_marca:
+        modelos_por_marca[m] = []
+    if mod in modelos_por_marca[m]:
+        contagem_modelos[mod] = contagem_modelos.get(mod, 0) + 1
     else:
-        shutil.rmtree(relative_path)
-        os.mkdir(relative_path)
+        modelos_por_marca[m].append(mod)
+        contagem_modelos[mod] = contagem_modelos.get(mod, 0) + 1
 
-def new_file(filename, content):
-    with open(filename, 'w', encoding='utf-8') as f:
-        f.write(content)
-        
-# ---------------Script Principal----------------- #
+items_marcas = []
+for m in sorted(contagem_marcas.keys()):
+    items_marcas.append(f'<li>{m} - {contagem_marcas[m]} reparações</li>')
 
-html = f'''
-<html>
-    <head>
-        <title>Consulta</title>
-        <meta charset="utf-8"/>
-    </head>
-    
-    <body>
-        <h3>Dados de possivel consulta</h3>
-        <hr/>
-        <ul>
-            <li><a href="reparações.html">Reparações</a></li>
-            <li><a href="intervenções.html">Intervenções</a></li>
-            <li><a href="marcasmodelos.html">Marcas e Modelos</a></li>
-        </ul>    
-    </body>
+items_modelos = []
+for m in sorted(modelos_por_marca.keys()):
+    for mod in modelos_por_marca[m]:
+        items_modelos.append(f'<li>{m} {mod} - {contagem_modelos[mod]} reparações</li>')
 
-</html>
-'''
-mk_dir('output')
-new_file('output/index.html', html)
+corpo_mm = barra_navegacao('Marcas') + '\n<ul>\n' + '\n'.join(items_marcas) + '\n</ul>'
+corpo_mm += '\n<h3>Modelos</h3>\n<ul>\n' + '\n'.join(items_modelos) + '\n</ul>'
+guardar_pagina('output/marcasmodelos.html', montar_pagina('Marcas e Modelos', corpo_mm))
 
-# --------------- Script Reparações ----------------- #
+# -- Páginas individuais de cada reparação --
 
-data = open_json('dataset_reparacoes.json')
+for rep in lista_reparacoes:
+    v = rep['viatura']
+    mat = v['matricula']
+    linhas_int = []
+    for interv in rep['intervencoes']:
+        linhas_int.append(f'<li><a href="intervenção_{interv["codigo"]}.html">{interv["codigo"]} - {interv["nome"]}</a></li>')
 
-reparacoes = data['reparacoes']
-reparacoes_ordenadas = sorted(reparacoes, key=lambda x: x['data'], reverse=True)
+    tabela = f'''<table border="1">
+    <tr><th>Data</th><td>{rep["data"]}</td></tr>
+    <tr><th>Nome</th><td>{rep["nome"]}</td></tr>
+    <tr><th>NIF</th><td>{rep["nif"]}</td></tr>
+    <tr><th>Marca</th><td>{v["marca"]}</td></tr>
+    <tr><th>Modelo</th><td>{v["modelo"]}</td></tr>
+    <tr><th>Número de Intervenções</th><td>{rep["nr_intervencoes"]}</td></tr>
+</table>
+<h4>Intervenções</h4>
+<ul>
+''' + '\n'.join(linhas_int) + '\n</ul>'
 
-lista_links = ""
-for reparacao in reparacoes_ordenadas:
-    data = reparacao['data']
-    nome = reparacao['nome']
-    nif = reparacao['nif']
-    marca = reparacao['viatura']['marca']
-    modelo = reparacao['viatura']['modelo']
-    matricula = reparacao['viatura']['matricula']
-    nr_intervencoes = reparacao['nr_intervencoes'] 
-    lista_links += f'''
-    <li><a href="reparação_{matricula}.html">{data} - {nome} - nif:{nif} - {marca} - {modelo} - {nr_intervencoes} intervenções</a></li>
-    '''
+    corpo_r = barra_navegacao(f'Reparação {mat}') + '\n' + tabela
+    guardar_pagina(f'output/reparação_{mat}.html', montar_pagina(f'Reparação {mat}', corpo_r))
 
-html = f'''
-<html>
-    <head>
-        <title>Reparações</title> 
-        <meta charset="utf-8"/>
-    </head>
-    <body>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-             <h3>Reparações:</h3>
-             <a href="index.html">Voltar ao indice</a>
-        </div>
-        <ul>
-            {lista_links}
-        </ul>
-    </body>
-</html>
-'''
-new_file('output/reparações.html', html)
+# -- Páginas individuais de cada intervenção --
 
-# --------------- Script Intervenções ----------------- #
+for cod in codigos_ordenados:
+    info = mapa_intervencoes[cod]
+    linhas_rep = []
+    for rep in lista_reparacoes:
+        for iv in rep['intervencoes']:
+            if iv['codigo'] == cod:
+                v = rep['viatura']
+                linhas_rep.append(f'<li><a href="reparação_{v["matricula"]}.html">{rep["data"]} - {rep["nome"]} - {v["marca"]}</a></li>')
 
-intervencoes = []
-for reparacao in reparacoes:
-    for intervencao in reparacao['intervencoes']:
-        if intervencao not in intervencoes:
-            intervencoes.append(intervencao)
-            
-intervencoes_ordenadas = sorted(intervencoes, key=lambda x: x['codigo'])
-lista_links2 = ""
-for intervencao in intervencoes_ordenadas:
-    codigo = intervencao['codigo']
-    nome = intervencao['nome']
-    lista_links2 += f'''
-    <li><a href="intervenção_{codigo}.html">{codigo} - {nome}</a></li>
-    '''
-html = f'''
-<html>
-    <head>
-        <title>Intervenções</title>
-        <meta charset="utf-8"/>
-    </head>
-    <body>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-             <h3>Intervenções:</h3>
-             <a href="index.html">Voltar ao indice</a>
-        </div>
-        <ul>
-            {lista_links2}
-        </ul>
-    </body>
-</html>
-'''
-new_file('output/intervenções.html', html)
+    tabela = f'''<table border="1">
+    <tr><th>Código</th><td>{cod}</td></tr>
+    <tr><th>Nome</th><td>{info["nome"]}</td></tr>
+    <tr><th>Descrição</th><td>{info["descricao"]}</td></tr>
+</table>
+<h4>Reparações em que foi utilizada:</h4>
+<ul>
+''' + '\n'.join(linhas_rep) + '\n</ul>'
 
-# --------------- Script Marcas e Modelos ----------------- #
-marcas = []
-modelos = {}
-contador = {}
-for reparacao in reparacoes:
-    marca = reparacao['viatura']['marca']
-    if marca not in marcas:
-        marcas.append(marca)
-        contador[marca] = 1
-    else:
-        contador[marca] += 1
-    modelo = reparacao['viatura']['modelo']
-    if marca not in modelos:
-        modelos[marca] = []
-    if modelo not in modelos[marca]:
-        modelos[marca] += [modelo]
-        contador[modelo] = 1
-    else:
-        contador[modelo] += 1
-marcas_ordenadas = sorted(marcas)
-modelos_ordenados = sorted(modelos)
-lista_links3 = ""
-for marca in marcas_ordenadas:
-    lista_links3 += f'''
-    <li>{marca} - {contador[marca]} reparações</li>
-    '''
-lista_links4 = ""
-for marca in modelos_ordenados:
-    for modelo in modelos[marca]:
-        lista_links4 += f'''
-        <li>{marca} {modelo} - {contador[modelo]} reparações</li>
-        '''
-
-html = f'''
-<html>
-    <head>
-        <title>Marcas e Modelos</title>
-        <meta charset="utf-8"/>
-    </head>
-    <body>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-             <h3>Marcas</h3>
-             <a href="index.html">Voltar ao indice</a>
-        </div>
-        <ul>
-            {lista_links3}
-        </ul>
-        <h3>Modelos</h3>
-        <ul>
-            {lista_links4}
-        </ul>
-        
-    </body>
-</html>
-'''
-new_file('output/marcasmodelos.html', html)
-
-# --------------- Script de 1 Reparação ----------------- #
-for reparacao in reparacoes:
-    data = reparacao['data']
-    nome = reparacao['nome']
-    nif = reparacao['nif']
-    matricula = reparacao['viatura']['matricula']
-    marca = reparacao['viatura']['marca']
-    modelo = reparacao['viatura']['modelo']
-    nr_intervencoes = reparacao['nr_intervencoes'] 
-    lista_intervencoes = ""
-    for intervencao in reparacao['intervencoes']:
-        codigo = intervencao['codigo']
-        nome_intervencao = intervencao['nome']
-        lista_intervencoes += f'''
-        <li><a href="intervenção_{codigo}.html">{codigo} - {nome_intervencao}</a></li>
-        '''
-    html = f'''
-    <html>
-        <head>
-            <title>Reparação {matricula}</title>
-            <meta charset="utf-8"/>
-        </head>
-        <body>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-             <h3>Reparação {matricula}</h3>
-             <a href="index.html">Voltar ao indice</a>
-        </div>
-            <table border="1">
-                <tr>
-                    <th>Data</th>
-                    <td>{data}</td>
-                </tr>
-                <tr>
-                    <th>Nome</th>
-                    <td>{nome}</td>
-                </tr>
-                <tr>
-                    <th>NIF</th>
-                    <td>{nif}</td>
-                </tr>
-                <tr>
-                    <th>Marca</th>
-                    <td>{marca}</td>
-                </tr>
-                <tr>
-                    <th>Modelo</th>
-                    <td>{modelo}</td>
-                </tr>
-                <tr>
-                    <th>Número de Intervenções</th>
-                    <td>{nr_intervencoes}</td>
-                </tr>
-            </table>
-            <h4>Intervenções</h4>
-            <ul>
-                {lista_intervencoes}
-            </ul>
-        </body>
-    </html>
-    '''
-    new_file(f'output/reparação_{matricula}.html', html)
-    
-    
-# --------------- Script de 1 Intervenção ----------------- #
-for intervencao in intervencoes:
-    codigo = intervencao['codigo']
-    nome = intervencao['nome']
-    descricao = intervencao['descricao']
-    lista_reparacoes = ""
-    for reparacao in reparacoes:
-        for interv in reparacao['intervencoes']:
-            if interv['codigo'] == codigo:
-                nome_reparacao = reparacao['nome']
-                matricula = reparacao['viatura']['matricula']
-                marca = reparacao['viatura']['marca']
-                lista_reparacoes += f'''
-                <li><a href="reparação_{matricula}.html">{reparacao['data']} - {nome_reparacao} - {marca}</a></li>
-                '''
-                
-    html = f'''
-    <html>
-        <head>
-            <title>Intervenção {codigo}</title>
-            <meta charset="utf-8"/>
-        </head>
-        <body>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3>Intervenção {codigo}</h3>
-                <a href="index.html">Voltar ao indice</a>
-            </div>
-            <table border="1">
-                <tr>
-                    <th>Código</th>
-                    <td>{codigo}</td>
-                </tr>
-                <tr>
-                    <th>Nome</th>
-                    <td>{nome}</td>
-                </tr>
-                <tr>
-                    <th>Descrição</th>
-                    <td>{descricao}</td>
-                </tr>
-            </table>
-            <h4>Reparações em que foi utilizada:</h4>
-            <ul>
-               {lista_reparacoes}
-            </ul>
-        </body>
-    </html>
-    '''
-    new_file(f'output/intervenção_{codigo}.html', html)
+    corpo_i = barra_navegacao(f'Intervenção {cod}') + '\n' + tabela
+    guardar_pagina(f'output/intervenção_{cod}.html', montar_pagina(f'Intervenção {cod}', corpo_i))
