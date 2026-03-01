@@ -15,7 +15,7 @@
     - 3: /viaturas - Tabela HTML com todas as marcas e modelos de viaturas intervencionadas sem repeticoes, com o nº de vezes que cada modelo foi reparado
 
 ### Lista de Resultados
-- [Reparações](output/reparacoes.htm)
-- [Intervenções](output/intervencoes.htm)
-  [Viaturas](output/viaturas.htm)
+- [Reparações](output2/reparacoes.html)
+- [Intervenções](output2/intervencoes.html)
+  [Viaturas](output2/viaturas.html)
 
