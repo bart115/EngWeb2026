@@ -14,11 +14,11 @@
 
 ### Lista de Resultados
 
-* [Index](output/index.html)
-* [Lista de Reparações](output/reparações.html)
-* [Lista de Intervenções](output/intervenções.html)
-* [Lista de Marcas/Modelos](output/marcasmodelos.html)
-* [Exemplo de uma Reparação](output/reparação_0-AI-56.html)
-* [Exemplo de uma Intervenção](output/intervenção_R001.html)
+* [Index](output1/index.html)
+* [Lista de Reparações](output1/reparações.html)
+* [Lista de Intervenções](output1/intervenções.html)
+* [Lista de Marcas/Modelos](output1/marcasmodelos.html)
+* [Exemplo de uma Reparação](output1/reparação_0-AI-56.html)
+* [Exemplo de uma Intervenção](output1/intervenção_R001.html)
 
 
