@@ -1,0 +1,41 @@
+extends layout
+
+block content
+  .w3-card-4
+    header.w3-container.w3-teal
+      h1 Registo de EMD: #{emd.nome.primeiro} #{emd.nome.último}
+    br
+    .w3-container 
+        ul.w3-ul.w3-card-4(style="width:50%")
+            li.w3-teal
+                b= emd.nome.primeiro + ' ' + emd.nome.último
+            li
+                b Data: 
+                span= emd.dataEMD
+            li 
+                b Idade: 
+                span= emd.idade
+            li
+                b Género: 
+                span= emd.género
+            li 
+                b Morada: 
+                span= emd.morada
+            li
+                b Modalidade: 
+                span= emd.modalidade
+            li 
+                b Clube: 
+                span= emd.clube
+            li
+                b Email: 
+                span= emd.email
+            li 
+                b Federado: 
+                span= emd.federado 
+            li
+                b Resultado: 
+                span= emd.resultado
+    a.w3-btn.w3-teal.w3-margin-top.w3-margin-left(href=`/emd/edit/${emd.id}`) Editar
+    a.w3-btn.w3-red.w3-margin-top.w3-margin-left(href=`/emd/apagar/${emd.id}`) Apagar
+    a.w3-btn.w3-grey.w3-margin-top.w3-margin-left(href="/") Voltar

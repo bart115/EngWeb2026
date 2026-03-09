@@ -1,0 +1,42 @@
+extends layout
+
+block content
+  .w3-card-4
+    header.w3-container.w3-teal
+      h1 
+        span Training Records List     
+        
+        a.w3-btn(href="/emd/register") ✚
+    
+    .w3-container
+      table.w3-table-all.w3-margin-top
+        thead
+          tr
+          if aux == 0
+            th.w3-hover-grey(style="cursor:pointer" onclick=`window.location.href='/emd?_sort=nome.primeiro&_order=desc'`) Nome ⮟ 
+            th.w3-hover-grey(style="cursor:pointer" onclick=`window.location.href='/emd?_sort=dataEMD&_order=asc'`) Data ⮟
+            th Modalidade
+            th Resultado
+          if aux == 1
+            th.w3-hover-grey(style="cursor:pointer" onclick=`window.location.href='/emd?_sort=nome.primeiro&_order=asc'`) Nome ⮝
+            th.w3-hover-grey(style="cursor:pointer" onclick=`window.location.href='/emd?_sort=dataEMD&_order=asc'`) Data ⮟
+            th Modalidade
+            th Resultado
+          if aux == 2
+            th.w3-hover-grey(style="cursor:pointer" onclick=`window.location.href='/emd?_sort=nome.primeiro&_order=asc'`) Nome ⮟ 
+            th.w3-hover-grey(style="cursor:pointer" onclick=`window.location.href='/emd?_sort=dataEMD&_order=desc'`) Data ⮟
+            th Modalidade
+            th Resultado
+          if aux == 3
+            th.w3-hover-grey(style="cursor:pointer" onclick=`window.location.href='/emd?_sort=nome.primeiro&_order=asc'`) Nome ⮟ 
+            th.w3-hover-grey(style="cursor:pointer" onclick=`window.location.href='/emd?_sort=dataEMD&_order=asc'`) Data ⮝
+            th Modalidade
+            th Resultado
+        tbody
+          each t in list
+            tr.w3-hover-grey(style="cursor:pointer" onclick=`window.location.href='/emd/${t.id}'`)
+              td= t.nome.primeiro + ' ' + t.nome.último            
+              td= t.dataEMD
+              td= t.modalidade
+              td= t.resultado
+              
