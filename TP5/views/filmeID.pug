@@ -1,0 +1,32 @@
+extends layout
+
+block content
+  .w3-card-4
+    header.w3-container.w3-black
+      h1 #{filme.title}
+
+    .w3-container
+      table.w3-table-all.w3-margin-top
+        tr
+          th ID
+          td= filme.id
+        tr
+          th Título
+          td= filme.title
+        tr
+          th Ano
+          td= filme.year
+        tr
+          th Géneros
+          td
+            each g in filme.genres
+              a.w3-hover(href='/generos/nome/' + g) #{g}
+              br
+        tr
+          th Cast
+          td
+            each c in filme.cast
+              a.w3-hover(href='/atores/nome/' + c)  #{c}
+              br  
+
+      a.w3-button.w3-teal.w3-margin-top(href='/') Voltar
