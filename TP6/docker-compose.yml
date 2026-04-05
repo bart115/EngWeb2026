@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  # 1º Contentor: A tua Base de Dados (MongoDB)
+  mongodb:
+    image: mongo
+    ports:
+      - "27018:27017" # Para poderes aceder do teu PC ao Mongo dentro do contentor
+    volumes:
+      - ./init-mongo:/docker-entrypoint-initdb.d # Corrige a inicialização automática com Mongoose e MongoImport
+
+  # 2º Contentor: A tua Interface em Node.js
+  appcinema:
+    build: . # Lê o teu Dockerfile e cria a app Node aqui
+    ports:
+      - "16000:16000" # Expor a porta 16000 dita no app.js
+    depends_on:
+      - mongodb # Garante que a app Node.js só arranca DEPOIS do Mongo estar pronto
+    environment:
+      # Passamos o host para o container: em vez de ligar a "localhost", o App vai ligar-se ao serviço "mongodb" do compose.
+      - MONGO_URL=mongodb://mongodb:27017/cinema

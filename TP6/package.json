@@ -1,0 +1,14 @@
+{
+  "name": "tp6",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.6",
+    "express": "^5.2.1",
+    "mongoose": "^8.9.5",
+    "pug": "^3.0.3"
+  }
+}
