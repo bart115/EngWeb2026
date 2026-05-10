@@ -1,0 +1,758 @@
+extends layout
+
+block content
+  style.
+    .uc-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+    .uc-tab-btn { border: 1px solid #c7c7c7; background: #fff; padding: 7px 14px; border-radius: 16px; cursor: pointer; font-weight: 600; font-size: 13px; color: #4a4a4a; }
+    .uc-tab-btn.active { background: #673ab7; color: #fff; border-color: #673ab7; box-shadow: 0 1px 0 rgba(0,0,0,0.08); }
+    .uc-tab-btn.has-error { border-color: #e53935; color: #e53935; background: #fff4f4; }
+    .uc-tab-btn.active.has-error { background: #e53935; border-color: #e53935; color: #fff; }
+    .uc-tab-panel { display: none; }
+    .uc-tab-panel.active { display: block; }
+
+  .w3-card-4
+    header.w3-container.w3-purple
+      h2= uc ? `Editar UC #${uc.id}` : "Nova UC"
+    
+    form.w3-container.w3-padding-16(method="POST" action=uc ? `/uc/ucs/${uc.id}` : "/uc/ucs" enctype="multipart/form-data")
+      div(style='position: sticky; top: 0; z-index: 2; background: #fff; padding: 10px 0; border-bottom: 1px solid #eee; margin-bottom: 12px; display: flex; gap: 10px; align-items: center;')
+        button.w3-btn.w3-purple(type="submit")= uc ? "Update" : "Insert"
+        a.w3-btn.w3-grey(href= uc ? `/uc/ucs/${uc._id}` : "/uc/ucs") Cancel
+
+      div.uc-tabs
+        button.uc-tab-btn.active(type='button' data-tab='metadata') Metadata
+        button.uc-tab-btn(type='button' data-tab='docentes') Docentes
+        button.uc-tab-btn(type='button' data-tab='horario') Horario
+        button.uc-tab-btn(type='button' data-tab='avaliacao') Avaliacao
+        button.uc-tab-btn(type='button' data-tab='datas') Datas
+        button.uc-tab-btn(type='button' data-tab='aulas') Aulas
+        button.uc-tab-btn(type='button' data-tab='website') Website
+        if uc && user && (user.role === 'admin' || user.role === 'docente')
+          button.uc-tab-btn(type='button' data-tab='importar') Importar
+
+      div.uc-tab-panel.active(data-tab='metadata')
+        fieldset
+          legend Metadata
+          if uc 
+            input(type="hidden" name="id" value=uc.id)
+          
+          label Sigla (ex: EW2025)
+          input.w3-input.w3-round(type="text" name="sigla" value=uc ? uc.sigla : "" required)
+          
+          label Título
+          input.w3-input.w3-round(type="text" name="titulo" value=uc ? uc.titulo : "" required)
+
+          label Ano
+          - var anos = [];
+          - for (var y = 2026; y >= 1976; y--) { anos.push(y); }
+          select.w3-select.w3-round(name="ano" required)
+            option(value="" disabled selected=!(uc && uc.ano)) Escolhe o ano
+            each ano in anos
+              option(value=ano selected=(uc && Number(uc.ano) === ano)) #{ano}
+
+          fieldset.w3-margin-top
+            legend Visibilidade
+            label.w3-margin-right
+              input.w3-radio(type="radio" name="isPublic" value="true" checked=(!uc || uc.isPublic !== false))
+              span.w3-margin-left Pública (visível para todos os utilizadores)
+            label
+              input.w3-radio(type="radio" name="isPublic" value="false" checked=(uc && uc.isPublic === false))
+              span.w3-margin-left Privada (visível apenas para o docente criador e admin)
+
+      div.uc-tab-panel(data-tab='docentes')
+        fieldset#docentes-container
+          legend Docentes
+          if uc && uc.docentes && uc.docentes.length > 0
+            each docente, index in uc.docentes
+              .w3-border.w3-padding.w3-margin-bottom
+                h6 Docente ##{index + 1}
+                  if index > 0
+                    button.w3-btn.w3-red.w3-small.w3-right(type="button" onclick="this.parentElement.parentElement.remove()") X
+                input.w3-input.w3-round.w3-margin-bottom(type="text" name=`docentes[${index}][nome]` value=docente.nome placeholder="Nome do Responsável" required)
+                input.w3-input.w3-round.w3-margin-bottom(type="text" name=`docentes[${index}][categoria]` value=docente.categoria placeholder="Categoria (ex: Professor/Investigador/Empresário)" required)
+                input.w3-input.w3-round.w3-margin-bottom(type="text" name=`docentes[${index}][filiacao]` value=docente.filiacao placeholder="Filiação (ex: DI-UM)" required)
+                input.w3-input.w3-round.w3-margin-bottom(type="email" name=`docentes[${index}][email]` value=docente.email placeholder="Email Institucional" required)
+                input.w3-input.w3-round.w3-margin-bottom(type="webpage" name=`docentes[${index}][webpage]` value=docente.webpage || "" placeholder="Página Web (opcional)")
+                if docente.foto
+                  div.w3-margin-bottom
+                    img.w3-border(src=`/docentes-fotos/${docente.foto}` alt="Foto de " style="max-width: 100px; height: auto;")
+                    br
+                    small Foto atual
+                label.w3-margin-top Foto (opcional)
+                input.w3-input.w3-round(type="file" name=`docentes[${index}][foto]` accept="image/*")
+          else
+            .w3-border.w3-padding.w3-margin-bottom
+              h6 Primeiro Docente (Obrigatório)
+              input.w3-input.w3-round.w3-margin-bottom(type="text" name="docentes[0][nome]" placeholder="Nome do Responsável" required)
+              input.w3-input.w3-round.w3-margin-bottom(type="text" name="docentes[0][categoria]" placeholder="Categoria (ex: Professor/Investigador/Empresário)" required)
+              input.w3-input.w3-round.w3-margin-bottom(type="text" name="docentes[0][filiacao]" placeholder="Filiação (ex: DI-UM)" required)
+              input.w3-input.w3-round.w3-margin-bottom(type="email" name="docentes[0][email]" placeholder="Email Institucional" required)
+              input.w3-input.w3-round.w3-margin-bottom(type="webpage" name="docentes[0][webpage]" placeholder="Página Web (opcional)")
+              label.w3-margin-top Foto (opcional)
+              input.w3-input.w3-round(type="file" name="docentes[0][foto]" accept="image/*")
+        button.w3-btn.w3-light-grey.w3-margin-bottom(type="button" onclick="addDocente()") + Adicionar Outro Docente
+
+      div.uc-tab-panel(data-tab='horario')
+        fieldset
+          legend Horário
+          - var splitTurnos = function(list) {
+          -   var out = [];
+          -   var arr = Array.isArray(list) ? list : (list ? [list] : []);
+          -   arr.forEach(function(item) {
+          -     if (!item) return;
+          -     var str = String(item).trim();
+          -     if (!str) return;
+          -     var parts = str.split(/(?=Turno\s*\d+\s*:)/i).map(function(p) { return p.trim(); }).filter(Boolean);
+          -     if (parts.length > 1) {
+          -       out = out.concat(parts);
+          -     } else {
+          -       out.push(str);
+          -     }
+          -   });
+          -   return out;
+          - };
+          - var teoricas = (uc && uc.horario && uc.horario.teoricas && uc.horario.teoricas.length > 0) ? splitTurnos(uc.horario.teoricas) : [''];
+          - var praticas = (uc && uc.horario && uc.horario.praticas && uc.horario.praticas.length > 0) ? splitTurnos(uc.horario.praticas) : [''];
+
+          h6 Aulas Teóricas (T)
+          #horario-teoricas
+            each slot, index in teoricas
+              - var hasValue = slot && String(slot).trim();
+              .w3-border.w3-padding.w3-margin-bottom.horario-item(data-kind='teoricas' data-required=(!hasValue))
+                h6 Horário T ##{index + 1}
+                  if index > 0
+                    button.w3-btn.w3-red.w3-small.w3-right(type="button" onclick="this.parentElement.parentElement.remove()") X
+                .w3-row-padding
+                  .w3-col.s12.m6.l3
+                    label Dia
+                    select.w3-select.w3-round.horario-dia(data-field='dia' required=(!hasValue))
+                      option(value='') Dia
+                      option(value='Segunda-Feira') Segunda-Feira
+                      option(value='Terca-Feira') Terça-Feira
+                      option(value='Quarta-Feira') Quarta-Feira
+                      option(value='Quinta-Feira') Quinta-Feira
+                      option(value='Sexta-Feira') Sexta-Feira
+                      option(value='Sabado') Sábado
+                      option(value='Domingo') Domingo
+                  .w3-col.s12.m6.l3
+                    label Início da aula
+                    input.w3-input.w3-round.horario-inicio(type="time" step="300" data-field='inicio' required=(!hasValue))
+                  .w3-col.s12.m6.l3
+                    label Fim da aula
+                    input.w3-input.w3-round.horario-fim(type="time" step="300" data-field='fim' required=(!hasValue))
+                  .w3-col.s12.m6.l3
+                    label Sala
+                    input.w3-input.w3-round.horario-sala(type="text" placeholder="Sala" data-field='sala' required=(!hasValue))
+                input(type="hidden" name="horario[teoricas][]" value=slot || '' data-original=slot || '')
+          button.w3-btn.w3-light-grey.w3-margin-bottom(type="button" onclick="addHorario('teoricas')") + Adicionar Horário T
+
+          h6 Aulas Práticas (TP)
+          #horario-praticas
+            each slot, index in praticas
+              - var hasValue = slot && String(slot).trim();
+              .w3-border.w3-padding.w3-margin-bottom.horario-item(data-kind='praticas' data-required=(!hasValue))
+                h6 Horário TP ##{index + 1}
+                  if index > 0
+                    button.w3-btn.w3-red.w3-small.w3-right(type="button" onclick="this.parentElement.parentElement.remove()") X
+                .w3-row-padding
+                  .w3-col.s12.m6.l3
+                    label Dia
+                    select.w3-select.w3-round.horario-dia(data-field='dia' required=(!hasValue))
+                      option(value='') Dia
+                      option(value='Segunda-Feira') Segunda-Feira
+                      option(value='Terca-Feira') Terça-Feira
+                      option(value='Quarta-Feira') Quarta-Feira
+                      option(value='Quinta-Feira') Quinta-Feira
+                      option(value='Sexta-Feira') Sexta-Feira
+                      option(value='Sabado') Sábado
+                      option(value='Domingo') Domingo
+                  .w3-col.s12.m6.l3
+                    label Início da aula
+                    input.w3-input.w3-round.horario-inicio(type="time" step="300" data-field='inicio' required=(!hasValue))
+                  .w3-col.s12.m6.l3
+                    label Fim da aula
+                    input.w3-input.w3-round.horario-fim(type="time" step="300" data-field='fim' required=(!hasValue))
+                  .w3-col.s12.m6.l3
+                    label Sala
+                    input.w3-input.w3-round.horario-sala(type="text" placeholder="Sala" data-field='sala' required=(!hasValue))
+                input(type="hidden" name="horario[praticas][]" value=slot || '' data-original=slot || '')
+          button.w3-btn.w3-light-grey.w3-margin-bottom(type="button" onclick="addHorario('praticas')") + Adicionar Horário TP
+
+      div.uc-tab-panel(data-tab='avaliacao')
+        fieldset
+          legend Avaliação
+          - var avaliacaoItems = (uc && uc.avaliacao && uc.avaliacao.length > 0) ? uc.avaliacao.slice() : [''];
+          - if (avaliacaoItems.length === 1 && avaliacaoItems[0] && /,\s*\d/.test(avaliacaoItems[0])) {
+          -   avaliacaoItems = avaliacaoItems[0].split(/,(?=\s*\d)/).map(function(item) { return item.trim(); }).filter(Boolean);
+          - }
+          #avaliacao-container
+            each item, index in avaliacaoItems
+              - var hasValue = item && String(item).trim();
+              .w3-border.w3-padding.w3-margin-bottom.avaliacao-item(data-required=(!hasValue))
+                h6 Avaliação ##{index + 1}
+                  if index > 0
+                    button.w3-btn.w3-red.w3-small.w3-right(type="button" onclick="this.parentElement.parentElement.remove()") X
+                .w3-row-padding
+                  .w3-col.s12.m6.l6
+                    label Descrição
+                    input.w3-input.w3-round.avaliacao-desc(type="text" placeholder="Ex: Trabalhos de casa" data-field='desc' required=(!hasValue))
+                  .w3-col.s12.m6.l2
+                    label Percentagem
+                    input.w3-input.w3-round.avaliacao-peso(type="number" min="0" max="100" step="1" placeholder="%" data-field='peso' required=(!hasValue))
+                  .w3-col.s12.m6.l2
+                    label Nota mínima
+                    select.w3-select.w3-round.avaliacao-minreq(data-field='minreq')
+                      option(value='nao') Não
+                      option(value='sim') Sim
+                  .w3-col.s12.m6.l2
+                    label Valor mínimo
+                    input.w3-input.w3-round.avaliacao-minnota(type="number" min="0" max="20" step="1" placeholder="10" data-field='minnota')
+                input(type="hidden" name="avaliacao[]" value=item || '' data-original=item || '')
+          button.w3-btn.w3-light-grey.w3-margin-bottom(type="button" onclick="addAvaliacao()") + Adicionar Avaliação
+
+      div.uc-tab-panel(data-tab='datas')
+        fieldset
+          legend Datas de Avaliação
+          - var dias = [];
+          - for (var d = 1; d <= 31; d++) { dias.push(d < 10 ? '0' + d : '' + d); }
+          - var meses = [];
+          - for (var m = 1; m <= 12; m++) { meses.push(m < 10 ? '0' + m : '' + m); }
+          - var anosDatas = [];
+          - for (var y = 2026; y >= 1976; y--) { anosDatas.push('' + y); }
+          - var testeValue = (uc && uc.datas && uc.datas.teste) ? uc.datas.teste : null;
+          - var testeDate = testeValue ? new Date(testeValue) : null;
+          - var testeIso = (testeDate && !isNaN(testeDate.getTime())) ? testeDate.toISOString().slice(0, 10) : '';
+          - var testeParts = testeIso ? testeIso.split('-') : [];
+          - var exameValue = (uc && uc.datas && uc.datas.exame) ? uc.datas.exame : null;
+          - var exameDate = exameValue ? new Date(exameValue) : null;
+          - var exameIso = (exameDate && !isNaN(exameDate.getTime())) ? exameDate.toISOString().slice(0, 10) : '';
+          - var exameParts = exameIso ? exameIso.split('-') : [];
+          - var projetoValue = (uc && uc.datas && uc.datas.projeto) ? uc.datas.projeto : null;
+          - var projetoDate = projetoValue ? new Date(projetoValue) : null;
+          - var projetoIso = (projetoDate && !isNaN(projetoDate.getTime())) ? projetoDate.toISOString().slice(0, 10) : '';
+          - var projetoParts = projetoIso ? projetoIso.split('-') : [];
+
+          label Data do Teste (opcional)
+          .date-picker.w3-margin-bottom
+            select.w3-select.w3-round(name="datas[teste][dia]")
+              option(value="" selected=!testeParts.length) Dia
+              each dia in dias
+                option(value=dia selected=(testeParts[2] === dia)) #{dia}
+            select.w3-select.w3-round(name="datas[teste][mes]")
+              option(value="" selected=!testeParts.length) Mes
+              each mes in meses
+                option(value=mes selected=(testeParts[1] === mes)) #{mes}
+            select.w3-select.w3-round(name="datas[teste][ano]")
+              option(value="" selected=!testeParts.length) Ano
+              each ano in anosDatas
+                option(value=ano selected=(testeParts[0] === ano)) #{ano}
+
+          label Data do Exame (opcional)
+          .date-picker.w3-margin-bottom
+            select.w3-select.w3-round(name="datas[exame][dia]")
+              option(value="" selected=!exameParts.length) Dia
+              each dia in dias
+                option(value=dia selected=(exameParts[2] === dia)) #{dia}
+            select.w3-select.w3-round(name="datas[exame][mes]")
+              option(value="" selected=!exameParts.length) Mes
+              each mes in meses
+                option(value=mes selected=(exameParts[1] === mes)) #{mes}
+            select.w3-select.w3-round(name="datas[exame][ano]")
+              option(value="" selected=!exameParts.length) Ano
+              each ano in anosDatas
+                option(value=ano selected=(exameParts[0] === ano)) #{ano}
+
+          label Data do Projeto (opcional)
+          .date-picker
+            select.w3-select.w3-round(name="datas[projeto][dia]")
+              option(value="" selected=!projetoParts.length) Dia
+              each dia in dias
+                option(value=dia selected=(projetoParts[2] === dia)) #{dia}
+            select.w3-select.w3-round(name="datas[projeto][mes]")
+              option(value="" selected=!projetoParts.length) Mes
+              each mes in meses
+                option(value=mes selected=(projetoParts[1] === mes)) #{mes}
+            select.w3-select.w3-round(name="datas[projeto][ano]")
+              option(value="" selected=!projetoParts.length) Ano
+              each ano in anosDatas
+                option(value=ano selected=(projetoParts[0] === ano)) #{ano}
+
+      div.uc-tab-panel(data-tab='aulas')
+        fieldset#aulas-container
+          legend Aulas
+          if uc && uc.aulas && uc.aulas.length > 0
+            each aula, index in uc.aulas
+              .w3-border.w3-padding.w3-margin-bottom
+                h6 Aula ##{index + 1}
+                  button.w3-btn.w3-red.w3-small.w3-right(type="button" onclick="this.parentElement.parentElement.remove()") X
+                label Tipo da Aula
+                .aula-type-picker.w3-margin-bottom
+                  label.w3-margin-right
+                    input.w3-radio(type="radio" name=`aulas[${index}][tipo]` value="T" required checked=(aula && aula.tipo === 'T'))
+                    span.w3-margin-left T
+                  label.w3-margin-right
+                    input.w3-radio(type="radio" name=`aulas[${index}][tipo]` value="TP" required checked=(aula && aula.tipo === 'TP'))
+                    span.w3-margin-left TP
+                  label
+                    input.w3-radio(type="radio" name=`aulas[${index}][tipo]` value="PL" required checked=(aula && aula.tipo === 'PL'))
+                    span.w3-margin-left PL
+                input.w3-input.w3-round.w3-margin-bottom(type="text" name=`aulas[${index}][data]` value=aula.data placeholder="Data (ex: 2024-02-12)" required)
+                input.w3-input.w3-round(type="text" name=`aulas[${index}][sumario][]` value=(aula.sumario ? aula.sumario.join(', ') : "") placeholder="Sumário da Aula" required)
+          else
+            .w3-border.w3-padding.w3-margin-bottom
+              h6 Sem aulas registadas
+              p Podes adicionar aulas mais tarde se quiseres.
+        button.w3-btn.w3-light-grey.w3-margin-bottom(type="button" onclick="addAula()") + Adicionar Outra Aula
+
+      div.uc-tab-panel(data-tab='website')
+        fieldset
+          legend Tipo do Website
+          label Escolhe o tipo (A, B ou C)
+          #website-type-picker.w3-margin-top.w3-margin-bottom
+            - var websiteTypes = [{ value: 'A', img: '/images/opcA.png' }, { value: 'B', img: '/images/opcB.png' }, { value: 'C', img: '/images/opcC.png' }];
+            each item, idx in websiteTypes
+              label.website-type-option
+                input(type="radio" name="website[tipo]" value=item.value checked=(uc && uc.website && uc.website.tipo === item.value) required=(idx === 0))
+                span.website-type-card
+                  img.website-type-image(src=item.img alt=`Exemplo do tipo ${item.value}`)
+                  span.website-type-label Tipo #{item.value}
+          
+          label Cor Principal
+          #color-picker.w3-margin-top
+            - var colors = ['red', 'pink', 'purple', 'deep-purple', 'indigo', 'blue', 'teal', 'light-green', 'yellow', 'orange', 'brown', 'gray', 'black'];
+            - var colorMap = { 'red': '#f54245', 'pink': '#e91e63', 'purple': '#9c27b0', 'deep-purple': '#673ab7', 'indigo': '#3f51b5', 'blue': '#2196f3', 'teal': '#009688', 'light-green': '#8bc34a', 'yellow': '#ffeb3b', 'orange': '#ff9800', 'brown': '#795548', 'white': '#ffffff', 'gray': '#9e9e9e', 'black': '#000000' };
+            each color in colors
+              label.color-option(style=`margin: 8px; cursor: pointer; display: inline-flex;`)
+                input(type="radio" name="website[corPrincipal]" value=color style="display: none;" checked=(uc && uc.website && uc.website.corPrincipal === color))
+                span(style=`display: inline-block; width: 44px; height: 44px; border-radius: 50%; background-color: ${colorMap[color]}; border: 2px solid #ddd;` title=color)
+
+    if uc && user && (user.role === 'admin' || user.role === 'docente')
+      .w3-container.w3-padding-16.uc-tab-panel(data-tab='importar')
+        h3(style='margin-top: 0;') Importar dados
+        form(method='POST' action=`/uc/ucs/${uc.id}/import/aulas` enctype='multipart/form-data')
+          div(style='display: flex; flex-wrap: wrap; gap: 8px; align-items: center;')
+            span.w3-small Importar Aulas
+            select.w3-select.w3-border.w3-small(name='mode')
+              option(value='replace') Substituir
+              option(value='append') Acrescentar
+            input.w3-input.w3-border.w3-small(type='file' name='file' accept='application/json' required)
+            button.w3-button.w3-small.w3-teal(type='submit') Importar
+        form(method='POST' action=`/uc/ucs/${uc.id}/import/full` enctype='multipart/form-data' style='margin-top: 10px;')
+          div(style='display: flex; flex-wrap: wrap; gap: 8px; align-items: center;')
+            span.w3-small Importar UC Completa
+            select.w3-select.w3-border.w3-small(name='mode')
+              option(value='replace') Substituir
+              option(value='append') Acrescentar
+            input.w3-input.w3-border.w3-small(type='file' name='file' accept='application/json' required)
+            button.w3-button.w3-small.w3-teal(type='submit') Importar
+
+  script.
+    let docenteCount = #{uc && uc.docentes ? uc.docentes.length : 1};
+    function addDocente() {
+      const container = document.getElementById('docentes-container');
+      const html = `
+        <div class="w3-border w3-padding w3-margin-bottom">
+          <h6>Docente #${docenteCount + 1} <button type="button" class="w3-btn w3-red w3-small w3-right" onclick="this.parentElement.parentElement.remove()">X</button></h6>
+          <input class="w3-input w3-round w3-margin-bottom" type="text" name="docentes[${docenteCount}][nome]" placeholder="Nome do Responsável" required>
+          <input class="w3-input w3-round w3-margin-bottom" type="text" name="docentes[${docenteCount}][categoria]" placeholder="Categoria" required>
+          <input class="w3-input w3-round w3-margin-bottom" type="text" name="docentes[${docenteCount}][filiacao]" placeholder="Filiação" required>
+          <input class="w3-input w3-round w3-margin-bottom" type="email" name="docentes[${docenteCount}][email]" placeholder="Email Institucional" required>
+          <input class="w3-input w3-round w3-margin-bottom" type="webpage" name="docentes[${docenteCount}][webpage]" placeholder="Página Web (opcional)">
+          <label class="w3-margin-top">Foto (opcional)</label>
+          <input class="w3-input w3-round" type="file" name="docentes[${docenteCount}][foto]" accept="image/*">
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', html);
+      docenteCount++;
+    }
+
+    let aulaCount = #{uc && uc.aulas ? uc.aulas.length : 0};
+    function addAula() {
+      const container = document.getElementById('aulas-container');
+      const html = `
+        <div class="w3-border w3-padding w3-margin-bottom">
+          <h6>Aula #${aulaCount + 1} <button type="button" class="w3-btn w3-red w3-small w3-right" onclick="this.parentElement.parentElement.remove()">X</button></h6>
+          <label>Tipo da Aula</label>
+          <div class="aula-type-picker w3-margin-bottom">
+            <label class="w3-margin-right">
+              <input class="w3-radio" type="radio" name="aulas[${aulaCount}][tipo]" value="T" required>
+              <span class="w3-margin-left">T</span>
+            </label>
+            <label class="w3-margin-right">
+              <input class="w3-radio" type="radio" name="aulas[${aulaCount}][tipo]" value="TP" required>
+              <span class="w3-margin-left">TP</span>
+            </label>
+            <label>
+              <input class="w3-radio" type="radio" name="aulas[${aulaCount}][tipo]" value="PL" required>
+              <span class="w3-margin-left">PL</span>
+            </label>
+          </div>
+          <input class="w3-input w3-round w3-margin-bottom" type="text" name="aulas[${aulaCount}][data]" placeholder="Data" required>
+          <input class="w3-input w3-round" type="text" name="aulas[${aulaCount}][sumario][]" placeholder="Sumário da Aula" required>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', html);
+      aulaCount++;
+    }
+
+    function formatHorarioString(data) {
+      const parts = [];
+      if (data.dia) parts.push(`Dia: ${data.dia}`);
+      if (data.inicio) parts.push(`Inicio: ${data.inicio}`);
+      if (data.fim) parts.push(`Fim: ${data.fim}`);
+      if (data.sala) parts.push(`Sala: ${data.sala}`);
+      return parts.join(' | ');
+    }
+
+    function normalizeTime(hour, minute) {
+      if (hour === undefined || hour === null) return '';
+      const h = String(hour).padStart(2, '0');
+      const m = String(minute || '00').padStart(2, '0');
+      return `${h}:${m}`;
+    }
+
+    function parseHorarioString(text) {
+      if (!text) {
+        return { dia: '', inicio: '', fim: '', sala: '' };
+      }
+      const lower = text.toLowerCase();
+      const dayMap = [
+        { regex: /segunda|seg\b|2a/, label: 'Segunda-Feira' },
+        { regex: /terca|terça|ter\b|3a/, label: 'Terca-Feira' },
+        { regex: /quarta|qua\b|4a/, label: 'Quarta-Feira' },
+        { regex: /quinta|qui\b|5a/, label: 'Quinta-Feira' },
+        { regex: /sexta|sex\b|6a/, label: 'Sexta-Feira' },
+        { regex: /sabado|sábado|sab\b/, label: 'Sabado' },
+        { regex: /domingo|dom\b/, label: 'Domingo' }
+      ];
+      let dia = '';
+      for (const entry of dayMap) {
+        if (entry.regex.test(lower)) {
+          dia = entry.label;
+          break;
+        }
+      }
+
+      const timeRegex = /(\d{1,2})(?:h|:)(\d{2})?/gi;
+      const times = [];
+      let match;
+      while ((match = timeRegex.exec(lower)) !== null) {
+        times.push(normalizeTime(match[1], match[2]));
+      }
+      const inicio = times[0] || '';
+      const fim = times[1] || '';
+
+      let sala = '';
+      const salaIndex = lower.indexOf('sala');
+      if (salaIndex >= 0) {
+        sala = text.slice(salaIndex + 4).replace(/^[\s:\-–,]+/, '').trim();
+      } else if (text.includes(',')) {
+        const parts = text.split(',');
+        sala = parts[parts.length - 1].trim();
+      }
+
+      if (sala) {
+        sala = sala.replace(/[.,;]+$/g, '').trim();
+      }
+
+      return { dia, inicio, fim, sala };
+    }
+
+    function formatAvaliacaoString(data) {
+      const desc = data.desc || '';
+      const peso = data.peso || '';
+      const minreq = data.minreq === 'sim';
+      const minnota = data.minnota || '';
+      if (!desc || !peso) {
+        return '';
+      }
+      let result = `${desc} (${peso}%)`;
+      if (minreq && minnota) {
+        result += ` [nota minima de ${minnota} val.]`;
+      }
+      return result;
+    }
+
+    function parseAvaliacaoString(text) {
+      if (!text) {
+        return { desc: '', peso: '', minreq: 'nao', minnota: '' };
+      }
+      const raw = String(text);
+      const percentMatch = raw.match(/\((\d+(?:[.,]\d+)?)\s*%\)/);
+      const peso = percentMatch ? percentMatch[1].replace(',', '.') : '';
+      const minMatch = raw.match(/nota\s*minim[aá]\s*de\s*(\d+(?:[.,]\d+)?)/i);
+      const minnota = minMatch ? minMatch[1].replace(',', '.') : '';
+      const minreq = minnota ? 'sim' : 'nao';
+
+      let desc = raw;
+      desc = desc.replace(/\(.*?%\)/g, '');
+      desc = desc.replace(/\[.*?\]/g, '');
+      desc = desc.replace(/\s+/g, ' ').trim();
+      desc = desc.replace(/[\-–,;:.]+$/g, '').trim();
+
+      return { desc, peso, minreq, minnota };
+    }
+
+    function updateAvaliacaoItem(item) {
+      const desc = item.querySelector('[data-field="desc"]').value.trim();
+      const peso = item.querySelector('[data-field="peso"]').value.trim();
+      const minreq = item.querySelector('[data-field="minreq"]').value;
+      const minnotaInput = item.querySelector('[data-field="minnota"]');
+      const minnota = minnotaInput.value.trim();
+      const hidden = item.querySelector('input[type="hidden"]');
+      const original = hidden.getAttribute('data-original') || '';
+      const mustComplete = item.getAttribute('data-required') === 'true';
+
+      minnotaInput.required = minreq === 'sim';
+
+      const value = formatAvaliacaoString({ desc, peso, minreq, minnota });
+      if (value) {
+        hidden.value = value;
+      } else if (!mustComplete && original) {
+        hidden.value = original;
+      } else {
+        hidden.value = '';
+      }
+    }
+
+    function initAvaliacaoItem(item) {
+      const hidden = item.querySelector('input[type="hidden"]');
+      const original = hidden.value || hidden.getAttribute('data-original') || '';
+      if (original) {
+        const parsed = parseAvaliacaoString(original);
+        item.querySelector('[data-field="desc"]').value = parsed.desc || '';
+        item.querySelector('[data-field="peso"]').value = parsed.peso || '';
+        item.querySelector('[data-field="minreq"]').value = parsed.minreq || 'nao';
+        item.querySelector('[data-field="minnota"]').value = parsed.minnota || '';
+      }
+      const inputs = item.querySelectorAll('[data-field]');
+      inputs.forEach(input => {
+        input.addEventListener('input', () => updateAvaliacaoItem(item));
+        input.addEventListener('change', () => updateAvaliacaoItem(item));
+      });
+      updateAvaliacaoItem(item);
+    }
+
+    function initAvaliacaoEditors() {
+      document.querySelectorAll('.avaliacao-item').forEach(item => initAvaliacaoItem(item));
+    }
+
+    function addAvaliacao() {
+      const container = document.getElementById('avaliacao-container');
+      const index = container.querySelectorAll('.avaliacao-item').length + 1;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'w3-border w3-padding w3-margin-bottom avaliacao-item';
+      wrapper.setAttribute('data-required', 'true');
+      wrapper.innerHTML = `
+        <h6>Avaliação #${index}
+          <button type="button" class="w3-btn w3-red w3-small w3-right" onclick="this.parentElement.parentElement.remove()">X</button>
+        </h6>
+        <div class="w3-row-padding">
+          <div class="w3-col s12 m6 l6">
+            <label>Descrição</label>
+            <input class="w3-input w3-round avaliacao-desc" type="text" placeholder="Ex: Trabalhos de casa" data-field="desc" required>
+          </div>
+          <div class="w3-col s12 m6 l2">
+            <label>Percentagem</label>
+            <input class="w3-input w3-round avaliacao-peso" type="number" min="0" max="100" step="1" placeholder="%" data-field="peso" required>
+          </div>
+          <div class="w3-col s12 m6 l2">
+            <label>Nota mínima</label>
+            <select class="w3-select w3-round avaliacao-minreq" data-field="minreq">
+              <option value="nao">Não</option>
+              <option value="sim">Sim</option>
+            </select>
+          </div>
+          <div class="w3-col s12 m6 l2">
+            <label>Valor mínimo</label>
+            <input class="w3-input w3-round avaliacao-minnota" type="number" min="0" max="20" step="1" placeholder="10" data-field="minnota">
+          </div>
+        </div>
+        <input type="hidden" name="avaliacao[]" value="" data-original="">
+      `;
+      container.appendChild(wrapper);
+      initAvaliacaoItem(wrapper);
+    }
+
+    function updateHorarioItem(item) {
+      const dia = item.querySelector('[data-field="dia"]').value;
+      const inicio = item.querySelector('[data-field="inicio"]').value;
+      const fim = item.querySelector('[data-field="fim"]').value;
+      const sala = item.querySelector('[data-field="sala"]').value.trim();
+      const hidden = item.querySelector('input[type="hidden"]');
+      const original = hidden.getAttribute('data-original') || '';
+      const mustComplete = item.getAttribute('data-required') === 'true';
+
+      if (dia && inicio && fim && sala) {
+        hidden.value = formatHorarioString({ dia, inicio, fim, sala });
+      } else if (!mustComplete && original) {
+        hidden.value = original;
+      } else {
+        hidden.value = '';
+      }
+    }
+
+    function initHorarioItem(item) {
+      const hidden = item.querySelector('input[type="hidden"]');
+      const original = hidden.value || hidden.getAttribute('data-original') || '';
+      if (original) {
+        const parsed = parseHorarioString(original);
+        if (parsed.dia) item.querySelector('[data-field="dia"]').value = parsed.dia;
+        if (parsed.inicio) item.querySelector('[data-field="inicio"]').value = parsed.inicio;
+        if (parsed.fim) item.querySelector('[data-field="fim"]').value = parsed.fim;
+        if (parsed.sala) item.querySelector('[data-field="sala"]').value = parsed.sala;
+      }
+      const inputs = item.querySelectorAll('[data-field]');
+      inputs.forEach(input => {
+        input.addEventListener('input', () => updateHorarioItem(item));
+        input.addEventListener('change', () => updateHorarioItem(item));
+      });
+    }
+
+    function initHorarioEditors() {
+      document.querySelectorAll('.horario-item').forEach(item => initHorarioItem(item));
+    }
+
+    function addHorario(kind) {
+      const container = document.getElementById(kind === 'teoricas' ? 'horario-teoricas' : 'horario-praticas');
+      const index = container.querySelectorAll('.horario-item').length + 1;
+      const label = kind === 'teoricas' ? 'T' : 'TP';
+      const dayOptions = [
+        { value: '', label: 'Dia' },
+        { value: 'Segunda-Feira', label: 'Segunda-Feira' },
+        { value: 'Terca-Feira', label: 'Terça-Feira' },
+        { value: 'Quarta-Feira', label: 'Quarta-Feira' },
+        { value: 'Quinta-Feira', label: 'Quinta-Feira' },
+        { value: 'Sexta-Feira', label: 'Sexta-Feira' },
+        { value: 'Sabado', label: 'Sábado' },
+        { value: 'Domingo', label: 'Domingo' }
+      ];
+      const optionsHtml = dayOptions.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'w3-border w3-padding w3-margin-bottom horario-item';
+      wrapper.setAttribute('data-kind', kind);
+      wrapper.setAttribute('data-required', 'true');
+      wrapper.innerHTML = `
+        <h6>Horario ${label} #${index}
+          <button type="button" class="w3-btn w3-red w3-small w3-right" onclick="this.parentElement.parentElement.remove()">X</button>
+        </h6>
+        <div class="w3-row-padding">
+          <div class="w3-col s12 m6 l3">
+            <label>Dia</label>
+            <select class="w3-select w3-round horario-dia" data-field="dia" required>
+              ${optionsHtml}
+            </select>
+          </div>
+          <div class="w3-col s12 m6 l3">
+            <label>Inicio da aula</label>
+            <input class="w3-input w3-round horario-inicio" type="time" step="300" data-field="inicio" required>
+          </div>
+          <div class="w3-col s12 m6 l3">
+            <label>Fim da aula</label>
+            <input class="w3-input w3-round horario-fim" type="time" step="300" data-field="fim" required>
+          </div>
+          <div class="w3-col s12 m6 l3">
+            <label>Sala</label>
+            <input class="w3-input w3-round horario-sala" type="text" placeholder="Sala" data-field="sala" required>
+          </div>
+        </div>
+        <input type="hidden" name="horario[${kind}][]" value="" data-original="">
+      `;
+      container.appendChild(wrapper);
+      initHorarioItem(wrapper);
+    }
+
+    function setUcTab(tabName, store) {
+      const tabs = document.querySelectorAll('.uc-tab-btn');
+      const panels = document.querySelectorAll('.uc-tab-panel');
+      tabs.forEach(btn => {
+        const isActive = btn.getAttribute('data-tab') === tabName;
+        btn.classList.toggle('active', isActive);
+      });
+      panels.forEach(panel => {
+        const isActive = panel.getAttribute('data-tab') === tabName;
+        panel.classList.toggle('active', isActive);
+      });
+      if (store !== false) {
+        try {
+          sessionStorage.setItem('ucActiveTab', tabName);
+        } catch (error) {
+          // Ignore storage errors
+        }
+      }
+    }
+
+    function highlightInvalidTabs(form) {
+      const tabs = document.querySelectorAll('.uc-tab-btn');
+      tabs.forEach(btn => {
+        const tabName = btn.getAttribute('data-tab');
+        const panel = document.querySelector(`.uc-tab-panel[data-tab='${tabName}']`);
+        if (!panel) {
+          btn.classList.remove('has-error');
+          return;
+        }
+        const invalidElements = panel.querySelectorAll(':invalid');
+        const hasInvalid = Array.from(invalidElements).some(el => form && form.contains(el));
+        btn.classList.toggle('has-error', hasInvalid);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const tabs = document.querySelectorAll('.uc-tab-btn');
+      tabs.forEach(btn => {
+        btn.addEventListener('click', function() {
+          setUcTab(btn.getAttribute('data-tab'));
+        });
+      });
+      const storedTab = (() => {
+        try {
+          return sessionStorage.getItem('ucActiveTab');
+        } catch (error) {
+          return null;
+        }
+      })();
+      if (tabs.length) {
+        const defaultTab = storedTab && document.querySelector(`.uc-tab-panel[data-tab='${storedTab}']`)
+          ? storedTab
+          : tabs[0].getAttribute('data-tab');
+        setUcTab(defaultTab, false);
+      }
+
+      const form = document.querySelector('form');
+      if (form) {
+        form.addEventListener('submit', function(event) {
+          document.querySelectorAll('.horario-item').forEach(item => updateHorarioItem(item));
+          document.querySelectorAll('.avaliacao-item').forEach(item => updateAvaliacaoItem(item));
+          if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+            const firstInvalid = form.querySelector(':invalid');
+            if (firstInvalid) {
+              const panel = firstInvalid.closest('.uc-tab-panel');
+              if (panel) {
+                setUcTab(panel.getAttribute('data-tab'));
+              }
+            }
+            highlightInvalidTabs(form);
+          } else {
+            try {
+              sessionStorage.removeItem('ucActiveTab');
+            } catch (error) {
+              // Ignore storage errors
+            }
+          }
+        }, true);
+
+        form.addEventListener('input', function() {
+          highlightInvalidTabs(form);
+        });
+        form.addEventListener('change', function() {
+          highlightInvalidTabs(form);
+        });
+
+        highlightInvalidTabs(form);
+      }
+
+      initHorarioEditors();
+      initAvaliacaoEditors();
+    });
